@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model productos {
+  id               Int                    @id @default(autoincrement())
+  nombre           String
+  descripcion      String
+  marca            String?
+  especificaciones String?
+  precio           Decimal                @default(0.0)
+  stock            Int
+  garantia         String?
+  imagen           String
+  categoriaId      Int
+  promocionId      Int?
+  ivaPorcentaje    Decimal?
+  precioBase       Decimal                @default(0.0)
+  carritoProductos carrito_productos[]
+
+  pedidoProductos  pedido_productos[]
+  devoluciones     devoluciones[]
+  categoria        categorias             @relation(fields: [categoriaId], references: [id])
+  promocion        promociones?           @relation(fields: [promocionId], references: [id])
+}
+
+model categoria_iva {
+  id            Int        @id @default(autoincrement())
+  categoriaId   Int        @unique
+  ivaPorcentaje Decimal?   @default(15.0) @db.Decimal
+  categorias    categorias @relation(fields: [categoriaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model metodo_pago {
+  id          Int       @id @default(autoincrement())
+  nombre      String
+  descripcion String
+  pagos       pagos[]
+  pedidos     pedidos[]
+}
+
+model pagos {
+  id               Int         @id @default(autoincrement())
+  pedidoId         Int
+  metodoPagoId     Int
+  numeroTarjeta    String?
+  nombreTitular    String
+  fechaExpiracion  String
+  correoContacto   String
+  telefonoContacto String
+  monto            Decimal     @default(0.0)
+  fechaPago        DateTime    @default(now())
+  metodoPago       metodo_pago @relation(fields: [metodoPagoId], references: [id])
+  pedido           pedidos     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+}
+
+model categorias {
+  id            Int                   @id @default(autoincrement())
+  nombre        String
+  descripcion   String
+  categoria_iva categoria_iva?
+  promociones   categoria_promocion[]
+  productos     productos[]
+}
+
+model categoria_promocion {
+  id          Int         @id @default(autoincrement())
+  categoriaId Int
+  promocionId Int
+  categoria   categorias  @relation(fields: [categoriaId], references: [id])
+  promocion   promociones @relation(fields: [promocionId], references: [id])
+
+  @@unique([categoriaId, promocionId])
+}
+
+model promociones {
+  id          Int                   @id @default(autoincrement())
+  nombre      String
+  descripcion String
+  descuento   Decimal               @default(0.0)
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  categorias  categoria_promocion[]
+  productos   productos[]
+}
+
+model roles {
+  id       Int        @id @default(autoincrement())
+  nombre   String     @unique
+  usuarios usuarios[]
+
+  @@map("roles")
+}
+
+model usuarios {
+  id              Int              @id @default(autoincrement())
+  nombre          String
+  apellido        String
+  correo          String           @unique
+  password        String
+  direccion       String
+  telefono        String
+  ciudad          String
+  fechaNacimiento DateTime?
+  fechaRegistro   DateTime         @default(now())
+  rolId           Int
+  auditoria       auditoria[]
+  carrito         carrito[]
+  notificaciones  notificaciones[]
+  pedidos         pedidos[]
+  rol             roles            @relation(fields: [rolId], references: [id])
+
+  @@map("usuarios")
+}
+
+model notificaciones {
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int
+  mensaje       String
+  tipo          String
+  leido         Boolean  @default(false)
+  fechaCreacion DateTime @default(now())
+  usuario       usuarios @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model auditoria {
+  id                 Int       @id @default(autoincrement())
+  usuarioId          Int?
+  tabla_afectada     String
+  accion             String
+  registro           String
+  descripcion_cambio String?
+  fecha_hora         DateTime  @default(now())
+  usuario            usuarios? @relation(fields: [usuarioId], references: [id])
+}
+
+model pedido_productos {
+  id              Int       @id @default(autoincrement())
+  pedidoId        Int
+  productoId      Int
+  cantidad        Int
+  precio_unitario Decimal   @default(0.0)
+  pedido          pedidos   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto        productos @relation(fields: [productoId], references: [id])
+}
+
+model pedidos {
+  id                 Int                        @id @default(autoincrement())
+  usuarioId          Int
+  direccionEnvio     String
+  metodoPagoId       Int
+  metodoEnvioId      Int
+  estadoId           Int
+  total              Decimal                    @default(0.0)
+  fechaPedido        DateTime                   @default(now())
+  fechaActualizacion DateTime?
+  devoluciones       devoluciones[]
+  historialEstados   historial_estado_pedidos[]
+  pagos              pagos[]
+  productos          pedido_productos[]
+  estado             estado                     @relation(fields: [estadoId], references: [id])
+  metodoEnvio        metodo_envio               @relation(fields: [metodoEnvioId], references: [id])
+  metodoPago         metodo_pago                @relation(fields: [metodoPagoId], references: [id])
+  usuario            usuarios                   @relation(fields: [usuarioId], references: [id])
+}
+
+model devoluciones {
+  id              Int                    @id @default(autoincrement())
+  pedidoId        Int
+  productoId      Int?                    // Hacerlo opcional primero
+  cantidad        Int?                    // Hacerlo opcional primero
+  motivo          String
+  estadoId        Int
+  fechaDevolucion DateTime               @default(now())
+  fechaResolucion DateTime?
+  montoReembolsado Decimal?              @default(0.0)
+
+  estado          estado                 @relation(fields: [estadoId], references: [id])
+  pedido          pedidos                @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto        productos?              @relation(fields: [productoId], references: [id])  // Hacer opcional primero
+}
+
+model estado {
+  id                   Int                        @id @default(autoincrement())
+  nombre               String
+  descripcion          String
+  
+  devoluciones         devoluciones[]
+  historialEstados     historial_estado_pedidos[]
+  pedidos              pedidos[]
+}
+
+model historial_estado_pedidos {
+  id          Int      @id @default(autoincrement())
+  pedidoId    Int
+  estadoId    Int
+  fechaCambio DateTime @default(now())
+  estado      estado   @relation(fields: [estadoId], references: [id])
+  pedido      pedidos  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@unique([pedidoId, estadoId, fechaCambio])
+}
+
+model carrito {
+  id        Int                 @id @default(autoincrement())
+  usuarioId Int
+  usuarios  usuarios            @relation(fields: [usuarioId], references: [id])
+  productos carrito_productos[]
+}
+
+model carrito_productos {
+  id              Int       @id @default(autoincrement())
+  carritoId       Int
+  productoId      Int
+  cantidad        Int
+  precio_unitario Decimal   @default(0.0)
+  carrito         carrito   @relation(fields: [carritoId], references: [id])
+  producto        productos @relation(fields: [productoId], references: [id])
+}
+
+model metodo_envio {
+  id             Int       @id @default(autoincrement())
+  nombre         String
+  descripcion    String
+  costo          Decimal   @default(0.0)
+  tiempoEstimado String
+  pedidos        pedidos[]
+}
