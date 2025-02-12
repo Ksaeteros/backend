@@ -1,6 +1,5 @@
 import { ProductosData } from '../data/productos.data.js';
 import { subirImagenCloudinary } from '../utils/cloudinary.js';
-import { buscarProductosMercadoLibre } from '../utils/mercadoLibre.js';
 import {pedidosData} from '../data/pedidos.data.js';
 import {carritoData} from '../data/carrito.data.js';
 import { auditoriaService } from '../services/auditoria.service.js';
@@ -161,18 +160,6 @@ export const ProductosService = {
             } catch (error) {
                 console.error("❌ Error al subir imagen a Cloudinary:", error);
                 throw new Error("Error al subir imagen. Intenta nuevamente.");
-            }
-        }
-
-        // 🔹 Si no hay imagen subida, intentar obtener de MercadoLibre
-        if (!imageUrl) {
-            console.log("🔎 Buscando imagen en MercadoLibre...");
-            const productoML = await buscarProductosMercadoLibre(data.nombre);
-            if (productoML) {
-                imageUrl = productoML.imagen;
-                console.log("✅ Imagen obtenida de MercadoLibre:", imageUrl);
-            } else {
-                console.warn("⚠️ No se encontró imagen en MercadoLibre.");
             }
         }
 
